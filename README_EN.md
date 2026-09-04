@@ -216,6 +216,20 @@ Open Settings, verify that the key begins with `nvapi-`, and select a model enab
 Install Piper using the optional setup above. Without it, Vesper deliberately falls back to an available browser voice.
 </details>
 
+## Runtime dependencies
+
+NVIDIA is Vesper's primary AI service. The following supporting dependencies are used for voice input, live search, local speech, and the macOS launcher:
+
+| Dependency | Used for | If unavailable |
+|---|---|---|
+| **Chrome/Edge Web Speech API** | Converts your speech to text | Voice input does not work |
+| **DuckDuckGo** | Provides live web-search results | Only live search fails; normal AI conversations continue |
+| **Piper + Hugging Face** | Downloads and runs the Fahrettin and lessac voices | Vesper falls back to the browser's voice |
+| **PyPI** | Installs the `piper-tts` package | Piper cannot be installed; the browser voice remains available |
+| **Python 3 + macOS tools** | Starts and stops the local server | The `.command` launchers do not work |
+
+These services are not used to host this README. Every banner and screenshot displayed here is stored inside the repository.
+
 ---
 
 <p align="center">

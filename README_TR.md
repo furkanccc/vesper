@@ -216,6 +216,20 @@ Ayarları aç, anahtarın `nvapi-` ile başladığını doğrula ve NVIDIA hesab
 Opsiyonel kurulum bölümündeki adımlarla Piper’ı kur. Piper yoksa Vesper bilinçli olarak uygun bir tarayıcı sesine geçer.
 </details>
 
+## Çalışma zamanı bağımlılıkları
+
+Vesper’ın temel yapay zekâ servisi NVIDIA’dır. Aşağıdaki yardımcı bağımlılıklar sesli giriş, canlı arama, yerel seslendirme ve macOS başlatıcısı için kullanılır:
+
+| Bağımlılık | Ne için? | Olmazsa ne olur? |
+|---|---|---|
+| **Chrome/Edge Web Speech API** | Konuşmanı yazıya çevirmek | Sesli giriş çalışmaz |
+| **DuckDuckGo** | Güncel web araması | Yalnızca canlı arama başarısız olur; normal yapay zekâ sohbeti devam eder |
+| **Piper + Hugging Face** | Fahrettin ve lessac seslerini indirmek ve çalıştırmak | Vesper tarayıcının kendi sesine geçer |
+| **PyPI** | `piper-tts` paketinin ilk kurulumu | Piper kurulamaz; tarayıcı sesi kullanılabilir |
+| **Python 3 + macOS araçları** | Yerel sunucuyu başlatıp kapatmak | `.command` başlatıcıları çalışmaz |
+
+Bu servislerin hiçbiri README’yi barındırmak için kullanılmaz. Burada görünen tüm banner ve ekran görüntüleri doğrudan projenin içinde tutulur.
+
 ---
 
 <p align="center">
