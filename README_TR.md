@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>macOS için odaklı ve ses öncelikli bir yapay zekâ deneyimi.</strong><br>
+  <strong>macOS, Windows ve Linux için odaklı, ses öncelikli bir yapay zekâ deneyimi.</strong><br>
   Doğal konuş. Yanıtı anlık al. Vesper’dan sesli dinle.
 </p>
 
@@ -22,7 +22,7 @@
 
 ## Vesper ile tanış
 
-Vesper, tek bir doğal etkileşim etrafında tasarlanmış sinematik bir tarayıcı sesli asistanıdır: **konuş, dinle, devam et**. Arayüzü ve hafif proxy sunucusu Mac’inde yerel olarak çalışır; dil modeli yanıtları NVIDIA API üzerinden anlık olarak aktarılır.
+Vesper, tek bir doğal etkileşim etrafında tasarlanmış sinematik bir tarayıcı sesli asistanıdır: **konuş, dinle, devam et**. Arayüzü ve hafif proxy sunucusu bilgisayarında yerel olarak çalışır; dil modeli yanıtları NVIDIA API üzerinden anlık olarak aktarılır.
 
 Kurulumda seçilen dil tüm oturum boyunca belirleyicidir. Türkçeyi seçersen Vesper her zaman Türkçe, İngilizceyi seçersen her zaman İngilizce cevap verir; konuşma sırasında başka bir dil kullansan bile seçim değişmez.
 
@@ -74,9 +74,9 @@ Yerel proxy, tarayıcının CORS kısıtlamasını çözer; opsiyonel arama ve P
 
 ### Gereksinimler
 
-- macOS
+- macOS, Windows 10/11 veya yaygın bir masaüstü Linux dağıtımı
 - Chrome veya Edge
-- Python 3
+- Python 3.9 veya daha yeni bir sürüm
 - Yapay zekâ yanıtları için NVIDIA API anahtarı
 - Tarayıcı için mikrofon izni
 
@@ -84,21 +84,36 @@ Yerel proxy, tarayıcının CORS kısıtlamasını çözer; opsiyonel arama ve P
 
 Depoyu ZIP olarak indirip çıkart veya Git ile klonla.
 
-### 2. Başlatıcılara çalışma izni ver
+### 2. Vesper’ı başlat
 
-GitHub’dan ZIP olarak indirilen `.command` dosyaları çalıştırma iznini kaybedebilir. Terminal’de, çıkarttığın Vesper klasörünün içinde şu komutu çalıştır:
+İşletim sistemine uygun adımları kullan.
+
+#### macOS
+
+Terminal’de, çıkarttığın Vesper klasöründen bir kez izin ver:
 
 ```bash
-chmod +x openvesper.command closevesper.command
+chmod +x macosstart/openvesper.command macosstart/closevesper.command
 ```
 
-Terminal’de klasöre gitmek istemiyorsan `chmod +x ` yaz, `openvesper.command` ve `closevesper.command` dosyalarını aynı satıra sürükle, ardından Enter’a bas.
+Ardından `macosstart/openvesper.command` dosyasına çift tıkla.
 
-### 3. Vesper’ı başlat
+#### Windows
 
-`openvesper.command` dosyasına çift tıkla. Yerel sunucu `http://localhost:8777/vesper.html` adresinde başlar ve arayüz varsayılan tarayıcıda açılır.
+`windowsstart\openvesper.bat` dosyasına çift tıkla.
 
-### 4. Yapılandır
+#### Linux
+
+Terminal’de, çıkarttığın Vesper klasöründen:
+
+```bash
+chmod +x linuxstart/openvesper.sh linuxstart/closevesper.sh
+./linuxstart/openvesper.sh
+```
+
+Başlatıcı yerel sunucuyu `http://localhost:8777/vesper.html` adresinde çalıştırır ve mevcutsa Chrome veya Edge’i açar.
+
+### 3. Yapılandır
 
 1. NVIDIA API anahtarını (`nvapi-…`) gir.
 2. Dahil edilen NVIDIA modellerinden birini seç.
@@ -108,29 +123,28 @@ Terminal’de klasöre gitmek istemiyorsan `chmod +x ` yaz, `openvesper.command`
 
 > Dolu bir `apikey.json` dosyasını asla commit etme veya paylaşma. Depoda yalnızca boş şablon bulunur.
 
-### 5. Konuş
+### 4. Konuş
 
 Vesper başlatmanı istediğinde ekrana bir kez tıkla ve konuş. Duraklatmak, devam etmek veya cevabı kesmek için küreye ya da alt çubuğa dokun. Tam ekran için `F` tuşuna bas.
 
 ### Vesper’ı kapat
 
-`closevesper.command` dosyasına çift tıkla.
+| Platform | Kapatma yöntemi |
+|---|---|
+| macOS | `macosstart/closevesper.command` dosyasına çift tıkla |
+| Windows | `windowsstart\closevesper.bat` dosyasına çift tıkla |
+| Linux | `./linuxstart/closevesper.sh` komutunu çalıştır |
 
-## Opsiyonel: yerel Piper sesleri
+## Otomatik yerel Piper sesleri
 
-Vesper, Piper olmadan tarayıcı sesine geçerek çalışır. Tasarlanan yerel nöral sesleri kullanmak için Piper’ı bir kez kur:
-
-```bash
-/opt/homebrew/bin/python3.12 -m venv all/.piper-venv
-all/.piper-venv/bin/pip install piper-tts
-```
-
-İlk Piper isteğinde Vesper seçilen ses modelini indirip `all/voices/` altında önbelleğe alır:
+İlk başlatmada platform dosyası otomatik olarak `all/.piper-venv` ortamını oluşturur, uyumlu `piper-tts 1.8.0` paketini kurar ve iki ses modelini `all/voices/` klasörüne indirir:
 
 - Türkçe: `tr_TR-fahrettin-medium`
 - İngilizce: `en_US-lessac-medium`
 
-Model önbelleğe alındıktan sonra ses sentezi yerel çalışır. Ses ortamı ve modeller büyük ve cihaza özel oldukları için depoya eklenmez.
+İlk başlangıç internet gerektirir ve birkaç dakika sürebilir. Sonraki ses sentezi önbellekteki modellerle yerel çalışır. Piper o cihazda kurulamazsa Vesper yine açılır ve uyumlu bir tarayıcı sesine geçer.
+
+macOS’te yayımlanan Piper paketindeki gömülü eSpeak yolu sorunu da başlatıcı tarafından otomatik düzeltilir; kullanıcıdan Homebrew veya elle Piper kurulumu istenmez.
 
 ## Yapılandırma
 
@@ -152,12 +166,15 @@ Vesper bu ayarları `localStorage` veya IndexedDB’den geri yüklemez. Boş bir
 vesper/
 ├── vesper.html               # güncel arayüz ve uygulama mantığının tamamı
 ├── apikey.json               # boş yapılandırma şablonu
-├── openvesper.command        # yerel proxy + opsiyonel Piper başlatıcısı
-├── closevesper.command       # temiz kapatma
+├── macosstart/               # macOS başlatma ve kapatma .command dosyaları
+├── windowsstart/             # Windows başlatma ve kapatma .bat dosyaları
+├── linuxstart/               # Linux başlatma ve kapatma .sh dosyaları
 ├── README.md                 # dil seçim sayfası
 ├── README_EN.md              # İngilizce dokümantasyon
 ├── README_TR.md              # Türkçe dokümantasyon
 └── all/
+    ├── vesper_launcher.py    # ortak platformlar arası süreç yöneticisi
+    ├── vesper_server.py      # yerel web sunucusu ve NVIDIA proxy
     ├── piper_server.py       # yerel Piper TTS servisi
     ├── tests/                # davranış regresyon testleri
     ├── readme-assets/        # depoya ait görseller
@@ -169,7 +186,7 @@ vesper/
 
 | Veri veya bileşen | Nereye gider? |
 |---|---|
-| Arayüz ve proxy | Mac’inde yerel çalışır |
+| Arayüz ve proxy | Bilgisayarında yerel çalışır |
 | Yapılandırma | Yerel `apikey.json` dosyasında tutulur |
 | Yapay zekâ istemleri ve yanıtları | NVIDIA API’ye gönderilir ve oradan alınır |
 | Canlı arama sorguları | Yerel proxy üzerinden DuckDuckGo’ya gönderilir |
@@ -180,7 +197,7 @@ vesper/
 
 Vesper, Web Speech API kullandığı için **Chrome ve Edge** hedeflenmiştir. Firefox, Opera, Brave ve Vivaldi mevcut konuşma tanıma akışında desteklenmez.
 
-macOS’te ayrıca **Sistem Ayarları → Gizlilik ve Güvenlik → Mikrofon** bölümünden kullandığın tarayıcıya izin ver.
+Chrome veya Edge’e hem tarayıcıdan hem işletim sisteminin gizlilik ayarlarından mikrofon izni ver. Linux’ta ayarın yeri masaüstü ortamına göre değişir.
 
 ## Testler
 
@@ -195,30 +212,27 @@ Testler; emojilerin seslendirilmemesini, tam ekran davranışını, sabit dil ya
 ## Sorun giderme
 
 <details>
-<summary><strong>.command dosyası açılmıyor</strong></summary>
+<summary><strong>macOS .command dosyası açılmıyor</strong></summary>
 
-macOS, **“Uygun erişim ayrıcalıklarına sahip olmadığınız için dosya çalıştırılamadı”** mesajını gösteriyorsa dosyaların çalıştırma izni eksiktir:
+macOS erişim ayrıcalığı hatası gösterirse Hızlı başlangıç bölümündeki `chmod +x` komutunu çalıştır. Gatekeeper dosyayı doğrulayamadığını söylerse **Bitti** seçeneğine bas, **Sistem Ayarları → Gizlilik ve Güvenlik** bölümünü aç ve `openvesper.command` için **Yine de Aç** seçeneğini kullan. Bu izni yalnızca güvendiğin kaynaktan gelen dosyaya ver.
+</details>
 
-1. Terminal’i aç.
-2. `chmod +x ` yaz; sondaki boşluktan sonra henüz Enter’a basma.
-3. Finder’dan `openvesper.command` ve `closevesper.command` dosyalarının ikisini Terminal’e sürükle.
-4. İki dosyanın yolu aynı komut satırında göründüğünde Enter’a bas.
-5. `openvesper.command` dosyasına yeniden çift tıkla.
+<details>
+<summary><strong>Linux .sh dosyası çalışmıyor</strong></summary>
 
-macOS, **“Apple bu dosyanın kötü amaçlı yazılım içermediğini doğrulayamadı”** mesajını gösteriyorsa:
+Hızlı başlangıç bölümündeki Linux `chmod +x` komutunu çalıştır; ardından çıkartılan Vesper klasöründen `./linuxstart/openvesper.sh` komutunu kullan.
+</details>
 
-1. Uyarıda **Bitti** seçeneğine bas; dosyayı Çöp Sepeti’ne taşıma.
-2. **Apple menüsü → Sistem Ayarları → Gizlilik ve Güvenlik** bölümünü aç.
-3. Aşağıdaki **Güvenlik** bölümünde `openvesper.command` için **Yine de Aç** seçeneğine bas.
-4. Parolanı veya Touch ID’yi kullanarak onayla ve son uyarıda **Aç** seçeneğine bas.
+<details>
+<summary><strong>Windows .bat dosyasını engelliyor</strong></summary>
 
-Bu izin yalnızca güvendiğin bir kaynaktan indirdiğin dosya için verilmelidir.
+ZIP dosyasını resmî depodan indirdiğini doğrula. Windows SmartScreen görünürse yayıncı uyarısını incele ve yalnızca dosyalara güveniyorsan **Daha fazla bilgi → Yine de çalıştır** seçeneğini kullan.
 </details>
 
 <details>
 <summary><strong>Mikrofon başlamıyor</strong></summary>
 
-Chrome veya Edge kullan, site düzeyindeki mikrofon iznini onayla ve macOS mikrofon izinlerinde tarayıcının açık olduğunu doğrula.
+Chrome veya Edge kullan, “başlamak için ekrana dokun” yazdığında sayfaya bir kez tıkla, site mikrofon iznini onayla ve işletim sisteminde doğru giriş aygıtını seç.
 </details>
 
 <details>
@@ -230,12 +244,12 @@ Ayarları aç, anahtarın `nvapi-` ile başladığını doğrula ve NVIDIA hesab
 <details>
 <summary><strong>Fahrettin veya lessac sesi gelmiyor</strong></summary>
 
-Opsiyonel kurulum bölümündeki adımlarla Piper’ı kur. Piper yoksa Vesper bilinçli olarak uygun bir tarayıcı sesine geçer.
+İlk başlangıç terminalini otomatik kurulum bitene kadar açık tut. Kurulum başarısızsa `all/.vesper-piper.log` dosyasını kontrol et; Vesper uygun bir tarayıcı sesine bilinçli olarak geçer.
 </details>
 
 ## Çalışma zamanı bağımlılıkları
 
-Vesper’ın temel yapay zekâ servisi NVIDIA’dır. Aşağıdaki yardımcı bağımlılıklar sesli giriş, canlı arama, yerel seslendirme ve macOS başlatıcısı için kullanılır:
+Vesper’ın temel yapay zekâ servisi NVIDIA’dır. Aşağıdaki yardımcı bağımlılıklar sesli giriş, canlı arama, yerel seslendirme ve platform başlatıcıları için kullanılır:
 
 | Bağımlılık | Ne için? | Olmazsa ne olur? |
 |---|---|---|
@@ -243,7 +257,7 @@ Vesper’ın temel yapay zekâ servisi NVIDIA’dır. Aşağıdaki yardımcı ba
 | **DuckDuckGo** | Güncel web araması | Yalnızca canlı arama başarısız olur; normal yapay zekâ sohbeti devam eder |
 | **Piper + Hugging Face** | Fahrettin ve lessac seslerini indirmek ve çalıştırmak | Vesper tarayıcının kendi sesine geçer |
 | **PyPI** | `piper-tts` paketinin ilk kurulumu | Piper kurulamaz; tarayıcı sesi kullanılabilir |
-| **Python 3 + macOS araçları** | Yerel sunucuyu başlatıp kapatmak | `.command` başlatıcıları çalışmaz |
+| **Python 3.9+ + işletim sistemi araçları** | Yerel sunucuyu macOS, Windows ve Linux’ta başlatıp kapatmak | Platform başlatıcıları çalışmaz |
 
 Bu servislerin hiçbiri README’yi barındırmak için kullanılmaz. Burada görünen tüm banner ve ekran görüntüleri doğrudan projenin içinde tutulur.
 

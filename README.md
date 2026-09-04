@@ -13,5 +13,5 @@
 </p>
 
 <p align="center">
-  A voice-first AI assistant with a local interface, NVIDIA cloud intelligence, and optional offline Piper voices.
+  A cross-platform voice-first AI assistant with a local interface, NVIDIA cloud intelligence, and automatically installed Piper voices.
 </p>

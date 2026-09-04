@@ -22,7 +22,8 @@ from socketserver import ThreadingMixIn
 from http.server import HTTPServer
 from urllib.parse import urlparse, parse_qs
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8778
+PREPARE_ONLY = len(sys.argv) > 1 and sys.argv[1] == "--prepare"
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 and not PREPARE_ONLY else 8778
 ROOT = Path(__file__).resolve().parent
 VOICES_DIR = ROOT / "voices"
 VOICES_DIR.mkdir(exist_ok=True)
@@ -166,5 +167,15 @@ class S(ThreadingMixIn, HTTPServer):
     allow_reuse_address = True
 
 
+def prepare_voices():
+    for language in ("tr-TR", "en-US"):
+        entry, key = resolve_voice(language)
+        ensure_voice_files(key, entry)
+        print(f"prepared {key}")
+
+
 if __name__ == "__main__":
-    S(("127.0.0.1", PORT), H).serve_forever()
+    if PREPARE_ONLY:
+        prepare_voices()
+    else:
+        S(("127.0.0.1", PORT), H).serve_forever()

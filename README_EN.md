@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <strong>A focused, voice-first AI experience for macOS.</strong><br>
+  <strong>A focused, voice-first AI experience for macOS, Windows, and Linux.</strong><br>
   Speak naturally. Get a streamed answer. Hear it back.
 </p>
 
@@ -22,7 +22,7 @@
 
 ## Meet Vesper
 
-Vesper is a cinematic browser-based voice assistant built around one simple interaction: **talk, listen, continue**. Its interface and lightweight proxy run locally on your Mac, while language-model responses are streamed from the NVIDIA API.
+Vesper is a cinematic browser-based voice assistant built around one simple interaction: **talk, listen, continue**. Its interface and lightweight proxy run locally on your computer, while language-model responses are streamed from the NVIDIA API.
 
 The language selected during setup stays authoritative for the whole session. Choose Turkish and Vesper keeps answering in Turkish; choose English and it stays in English—even when the spoken input changes language.
 
@@ -74,9 +74,9 @@ The local proxy solves browser CORS restrictions and exposes the optional search
 
 ### Requirements
 
-- macOS
+- macOS, Windows 10/11, or a common desktop Linux distribution
 - Chrome or Edge
-- Python 3
+- Python 3.9 or newer
 - An NVIDIA API key for AI responses
 - Microphone permission for your browser
 
@@ -84,21 +84,36 @@ The local proxy solves browser CORS restrictions and exposes the optional search
 
 Download the repository as a ZIP and extract it, or clone it with Git.
 
-### 2. Allow the launcher to run
+### 2. Start Vesper
 
-The `.command` files downloaded in a GitHub ZIP can lose their executable permission. From Terminal, inside the extracted Vesper folder, run:
+Choose the instructions for your operating system.
+
+#### macOS
+
+In Terminal, from the extracted Vesper folder, grant permission once:
 
 ```bash
-chmod +x openvesper.command closevesper.command
+chmod +x macosstart/openvesper.command macosstart/closevesper.command
 ```
 
-If you do not want to navigate to the folder in Terminal, type `chmod +x `, drag both `openvesper.command` and `closevesper.command` onto the same command line, then press Return.
+Then double-click `macosstart/openvesper.command`.
 
-### 3. Start Vesper
+#### Windows
 
-Double-click `openvesper.command`. It starts the local server at `http://localhost:8777/vesper.html` and opens the interface in your default browser.
+Double-click `windowsstart\openvesper.bat`.
 
-### 4. Configure
+#### Linux
+
+In a terminal, from the extracted Vesper folder:
+
+```bash
+chmod +x linuxstart/openvesper.sh linuxstart/closevesper.sh
+./linuxstart/openvesper.sh
+```
+
+The launcher starts the local server at `http://localhost:8777/vesper.html` and opens Chrome or Edge when available.
+
+### 3. Configure
 
 1. Enter your NVIDIA API key (`nvapi-…`).
 2. Pick one of the included NVIDIA models.
@@ -108,29 +123,28 @@ Double-click `openvesper.command`. It starts the local server at `http://localho
 
 > Never commit or share a populated `apikey.json`. The repository contains an empty template only.
 
-### 5. Talk
+### 4. Talk
 
 Click once when Vesper asks you to start, then speak. Click the orb or bottom bar to pause, resume, or interrupt. Press `F` for fullscreen.
 
 ### Stop Vesper
 
-Double-click `closevesper.command`.
+| Platform | Stop command |
+|---|---|
+| macOS | Double-click `macosstart/closevesper.command` |
+| Windows | Double-click `windowsstart\closevesper.bat` |
+| Linux | Run `./linuxstart/closevesper.sh` |
 
-## Optional: local Piper voices
+## Automatic local Piper voices
 
-Vesper works without Piper by falling back to the browser voice. For the intended local neural voices, install Piper once:
-
-```bash
-/opt/homebrew/bin/python3.12 -m venv all/.piper-venv
-all/.piper-venv/bin/pip install piper-tts
-```
-
-On the first Piper request, Vesper downloads and caches the selected voice model under `all/voices/`:
+On the first start, the platform launcher automatically creates `all/.piper-venv`, installs the compatible `piper-tts 1.8.0` package, and downloads both voice models into `all/voices/`:
 
 - Turkish: `tr_TR-fahrettin-medium`
 - English: `en_US-lessac-medium`
 
-After the model is cached, speech synthesis works locally. The voice environment and model files are intentionally excluded from the repository because they are large and device-specific.
+The first start requires internet access and can take several minutes. Later speech synthesis runs locally from the cached models. If Piper installation is unavailable on that device, Vesper still opens and falls back to a compatible browser voice.
+
+On macOS, the launcher also repairs the embedded eSpeak path issue in the published Piper package automatically; users do not need Homebrew or a manual Piper installation.
 
 ## Configuration
 
@@ -152,12 +166,15 @@ Vesper does not restore these settings from `localStorage` or IndexedDB. An empt
 vesper/
 ├── vesper.html               # complete current interface and application logic
 ├── apikey.json               # empty configuration template
-├── openvesper.command        # local proxy + optional Piper launcher
-├── closevesper.command       # clean shutdown
+├── macosstart/               # macOS start and stop .command files
+├── windowsstart/             # Windows start and stop .bat files
+├── linuxstart/               # Linux start and stop .sh files
 ├── README.md                 # language landing page
 ├── README_EN.md              # English documentation
 ├── README_TR.md              # Turkish documentation
 └── all/
+    ├── vesper_launcher.py    # shared cross-platform process manager
+    ├── vesper_server.py      # local web server and NVIDIA proxy
     ├── piper_server.py       # local Piper TTS service
     ├── tests/                # behavior regression tests
     ├── readme-assets/        # repository-owned visuals
@@ -169,7 +186,7 @@ vesper/
 
 | Data or component | Where it goes |
 |---|---|
-| Interface and proxy | Runs locally on your Mac |
+| Interface and proxy | Runs locally on your computer |
 | Configuration | Stored in the local `apikey.json` file |
 | AI prompts and replies | Sent to and received from the NVIDIA API |
 | Live search queries | Sent to DuckDuckGo through the local proxy |
@@ -180,7 +197,7 @@ vesper/
 
 Vesper targets **Chrome and Edge** because it relies on the Web Speech API. Firefox, Opera, Brave, and Vivaldi are not supported by the current voice-recognition flow.
 
-On macOS, also enable the browser under **System Settings → Privacy & Security → Microphone**.
+Also allow microphone access for Chrome or Edge in the browser and in your operating system's privacy settings. On Linux, the exact setting depends on the desktop environment.
 
 ## Tests
 
@@ -195,30 +212,27 @@ The suite covers emoji-safe speech, fullscreen behavior, fixed language configur
 ## Troubleshooting
 
 <details>
-<summary><strong>The .command file will not open</strong></summary>
+<summary><strong>The macOS .command file will not open</strong></summary>
 
-If macOS says **“The file could not be executed because you do not have appropriate access privileges”**, the executable permission is missing:
+If macOS reports missing access privileges, run the `chmod +x` command from Quick start. If Gatekeeper says Apple cannot verify the file, click **Done**, open **System Settings → Privacy & Security**, and use **Open Anyway** for `openvesper.command`. Only grant this exception to files from a source you trust.
+</details>
 
-1. Open Terminal.
-2. Type `chmod +x `, including the trailing space, but do not press Return yet.
-3. Drag both `openvesper.command` and `closevesper.command` from Finder into Terminal.
-4. When both file paths appear on the same command line, press Return.
-5. Double-click `openvesper.command` again.
+<details>
+<summary><strong>The Linux .sh file will not run</strong></summary>
 
-If macOS says **“Apple could not verify this file is free of malware”**:
+Run the Linux `chmod +x` command from Quick start, then launch it from the extracted Vesper folder with `./linuxstart/openvesper.sh`.
+</details>
 
-1. Click **Done** in the warning; do not move the file to the Trash.
-2. Open **Apple menu → System Settings → Privacy & Security**.
-3. Scroll to **Security** and click **Open Anyway** for `openvesper.command`.
-4. Authenticate with your password or Touch ID, then click **Open** in the final prompt.
+<details>
+<summary><strong>The Windows .bat file is blocked</strong></summary>
 
-Only grant this exception to a file downloaded from a source you trust.
+Make sure the ZIP was downloaded from the official repository. If Windows SmartScreen appears, review the publisher warning and choose **More info → Run anyway** only when you trust the downloaded files.
 </details>
 
 <details>
 <summary><strong>The microphone does not start</strong></summary>
 
-Use Chrome or Edge, allow the site-level microphone prompt, and verify the macOS microphone permission for that browser.
+Use Chrome or Edge, click the page once when it says “click to start,” allow the site-level microphone prompt, and select the intended input device in the operating system.
 </details>
 
 <details>
@@ -230,12 +244,12 @@ Open Settings, verify that the key begins with `nvapi-`, and select a model enab
 <details>
 <summary><strong>The intended Fahrettin or lessac voice is missing</strong></summary>
 
-Install Piper using the optional setup above. Without it, Vesper deliberately falls back to an available browser voice.
+Keep the first-start terminal window open while the automatic installation finishes. If installation fails, check `all/.vesper-piper.log`; Vesper deliberately falls back to an available browser voice.
 </details>
 
 ## Runtime dependencies
 
-NVIDIA is Vesper's primary AI service. The following supporting dependencies are used for voice input, live search, local speech, and the macOS launcher:
+NVIDIA is Vesper's primary AI service. The following supporting dependencies are used for voice input, live search, local speech, and the platform launchers:
 
 | Dependency | Used for | If unavailable |
 |---|---|---|
@@ -243,7 +257,7 @@ NVIDIA is Vesper's primary AI service. The following supporting dependencies are
 | **DuckDuckGo** | Provides live web-search results | Only live search fails; normal AI conversations continue |
 | **Piper + Hugging Face** | Downloads and runs the Fahrettin and lessac voices | Vesper falls back to the browser's voice |
 | **PyPI** | Installs the `piper-tts` package | Piper cannot be installed; the browser voice remains available |
-| **Python 3 + macOS tools** | Starts and stops the local server | The `.command` launchers do not work |
+| **Python 3.9+ + operating-system tools** | Starts and stops the local server on macOS, Windows, and Linux | The platform launchers do not work |
 
 These services are not used to host this README. Every banner and screenshot displayed here is stored inside the repository.
 
