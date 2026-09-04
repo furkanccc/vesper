@@ -1,0 +1,1431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vesper</title>
+<style>
+  :root {
+    --bg-0: #000000;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-2: rgba(255, 255, 255, 0.13);
+    --txt: rgba(255, 255, 255, 0.94);
+    --txt-2: rgba(255, 255, 255, 0.5);
+    --txt-3: rgba(255, 255, 255, 0.28);
+    --violet: #b794ff;
+    --cyan: #5ee7ff;
+    --accent: linear-gradient(135deg, #b794ff, #5ee7ff);
+    --panel-w: clamp(196px, 19vw, 250px);
+    --panel-h: clamp(320px, 46vh, 480px);
+    --radius: 22px;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg-0);
+    color: var(--txt);
+    font-family: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+    font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+  }
+  ::selection { background: rgba(167, 139, 250, 0.35); }
+
+  /* ---------- atmosphere ---------- */
+  #bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(34vmax 34vmax at 50% 41%, rgba(124, 70, 224, 0.13), transparent 62%),
+      radial-gradient(26vmax 26vmax at 64% 62%, rgba(40, 138, 210, 0.07), transparent 60%),
+      #000;
+  }
+  #bg::after {
+    content: ""; position: absolute; inset: -20%;
+    background:
+      radial-gradient(30vmax 22vmax at 34% 34%, rgba(160, 120, 255, 0.06), transparent 62%),
+      radial-gradient(30vmax 22vmax at 66% 66%, rgba(94, 231, 255, 0.045), transparent 62%);
+    animation: aurora 40s ease-in-out infinite alternate;
+  }
+  #grain {
+    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    opacity: 0.028; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  #vignette {
+    position: fixed; inset: 0; z-index: 4; pointer-events: none;
+    box-shadow: inset 0 0 26vmax 3vmax rgba(0, 0, 0, 0.7);
+  }
+
+  /* ---------- layout ---------- */
+  #scene {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(40px, 6vw, 120px);
+    padding: 24px;
+  }
+
+  /* ---------- glass panels ---------- */
+  .panel {
+    position: relative;
+    width: var(--panel-w); height: var(--panel-h);
+    flex: none;
+    display: flex; flex-direction: column;
+    border-radius: var(--radius);
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.012));
+    border: 1px solid var(--line);
+    backdrop-filter: blur(26px) saturate(1.5);
+    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.10),
+      0 24px 60px -28px rgba(0, 0, 0, 0.9),
+      0 0 70px -46px rgba(150, 120, 255, 0.4);
+    overflow: hidden;
+  }
+  .panel::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: radial-gradient(130% 60% at 15% -10%, rgba(255, 255, 255, 0.10), transparent 55%);
+  }
+  #chat { animation: rise 0.7s var(--ease) both; }
+  #status { animation: rise 0.7s var(--ease) 0.08s both; }
+
+  .kicker {
+    flex: none;
+    padding: 13px 17px;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.26em; text-transform: uppercase;
+    color: var(--txt-2);
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .kicker .tick {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+  }
+  .live .kicker .tick { background: var(--cyan); box-shadow: 0 0 10px 1px rgba(103, 232, 249, 0.7); animation: pulse 1.8s ease-in-out infinite; }
+
+  /* chat log */
+  #log {
+    flex: 1; overflow-y: auto;
+    padding: 6px 17px 14px;
+    font-size: 13px;
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+  }
+  #log::-webkit-scrollbar { width: 6px; }
+  #log::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+  #log .line { padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.82); }
+  #log .line:last-child { border-bottom: none; }
+  #log .who {
+    display: block; margin-bottom: 3px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase;
+  }
+  #log .you .who { color: var(--cyan); }
+  #log .vesper .who { color: var(--violet); }
+  #log .interim { opacity: 0.5; }
+  #log .empty { padding-top: 10px; color: var(--txt-3); font-style: italic; }
+  #log .dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+  #log .dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--violet); display: inline-block; animation: pulse 1s ease-in-out infinite; }
+  #log .dots i:nth-child(2) { animation-delay: .15s; }
+  #log .dots i:nth-child(3) { animation-delay: .3s; }
+
+  /* status */
+  #status .body { padding: 16px 17px; display: flex; flex-direction: column; gap: 16px; flex: 1; }
+  #status .state {
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  #status .meter {
+    height: 6px; border-radius: 999px; overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  }
+  #status .meter > i {
+    display: block; height: 100%; width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 14px rgba(167, 139, 250, 0.6);
+    border-radius: 999px;
+    transition: width 0.12s linear;
+  }
+  #status dl { margin-top: auto; display: flex; flex-direction: column; }
+  #status .kv {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  #status .kv:last-child { border-bottom: none; }
+  #status .kv dt { font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--txt-3); }
+  #status .kv dd {
+    font-size: 12px; font-weight: 500; color: rgba(255, 255, 255, 0.85);
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+    max-width: 62%; text-align: end;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ---------- orb ---------- */
+  #orb-wrap {
+    position: relative; flex: none;
+    width: clamp(250px, 38vh, 480px); aspect-ratio: 1;
+    animation: fade 1s ease both;
+    cursor: pointer;
+  }
+  #orb-wrap::after {
+    content: ""; position: absolute; left: 50%; bottom: -6%;
+    width: 78%; height: 22%; transform: translateX(-50%);
+    background: radial-gradient(ellipse, rgba(167, 139, 250, 0.28), transparent 72%);
+    filter: blur(22px); pointer-events: none;
+  }
+  #orb { width: 100%; height: 100%; display: block; position: relative; z-index: 1; }
+  #ring, #ring::after, #ring::before { border-radius: 50%; position: absolute; }
+  #ring {
+    inset: -10%;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    animation: spin 120s linear infinite;
+  }
+  #ring::after {
+    content: ""; inset: 8%;
+    border: 1px dashed rgba(103, 232, 249, 0.22);
+    animation: spin 60s linear infinite reverse;
+  }
+  #ring::before {
+    content: ""; inset: -2%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(103, 232, 249, 0.55) 24deg, transparent 52deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    animation: spin 7s linear infinite;
+  }
+
+  /* ---------- activity pill ---------- */
+  #activity {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    z-index: 3;
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--line);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.8), 0 0 50px -26px rgba(140, 130, 255, 0.5);
+    font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--txt-2); max-width: 90vw;
+    animation: rise-x 0.7s var(--ease) 0.16s both;
+  }
+  #activity .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.25); }
+  #activity.busy .dot { background: var(--cyan); box-shadow: 0 0 10px 1px rgba(103, 232, 249, 0.7); animation: pulse 1.4s ease-in-out infinite; }
+  #activity.err { color: #ffb4b4; cursor: pointer; }
+  #activity.err .dot { background: #ff6b6b; box-shadow: 0 0 10px 1px rgba(255, 107, 107, 0.6); animation: none; }
+  #activity.tap { color: var(--cyan); cursor: pointer; }
+  #activity.tap .dot { background: var(--cyan); box-shadow: 0 0 10px 1px rgba(103, 232, 249, 0.7); animation: pulse 1.4s ease-in-out infinite; }
+  #activity.speak { cursor: pointer; }
+  #activity.speak .dot { background: var(--violet); box-shadow: 0 0 10px 1px rgba(183, 148, 255, 0.7); }
+
+  /* ---------- chrome ---------- */
+  #brand {
+    position: fixed; inset-inline-start: 24px; top: 22px; z-index: 3;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.4em; text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  #brand .d {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px rgba(167, 139, 250, 0.8);
+  }
+  #top-actions {
+    position: fixed; inset-inline-end: 22px; top: 18px; z-index: 3;
+    display: flex; align-items: center; gap: 12px;
+  }
+  #fullscreen-hint {
+    color: var(--txt-2);
+    font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+    white-space: nowrap; user-select: none;
+  }
+  #gear {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 13px;
+    border: 1px solid var(--line); border-radius: 11px;
+    background: rgba(255, 255, 255, 0.035); color: var(--txt-2);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+  }
+  #gear .ico { font-size: 13px; transition: transform 0.35s var(--ease); display: inline-block; }
+  #gear:hover { color: #fff; background: rgba(255, 255, 255, 0.08); border-color: var(--line-2); }
+  #gear:hover .ico { transform: rotate(90deg); }
+  #credit {
+    position: fixed; inset-inline-end: 22px; bottom: 18px; z-index: 3;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+    color: #fff; text-decoration: none;
+    transition: color 0.2s;
+  }
+  #credit:visited { color: #fff; }
+  #credit:hover { color: #fff; }
+
+  /* ---------- config modal ---------- */
+  #config {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; align-items: center; justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.82);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  }
+  #config.open { display: flex; animation: fade 0.25s ease; }
+  #config .card {
+    position: relative;
+    width: 100%; max-width: 408px; max-height: 92vh; overflow-y: auto;
+    padding: 34px 32px 30px;
+    border-radius: 26px;
+    background: linear-gradient(168deg, rgba(17, 17, 23, 0.98), rgba(6, 6, 10, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 40px 110px -18px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    animation: card-in 0.42s var(--ease);
+    scrollbar-width: thin;
+  }
+  #config .card::before {
+    content: ""; position: absolute; left: 26px; right: 26px; top: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(167, 139, 250, 0.7), rgba(103, 232, 249, 0.7), transparent);
+  }
+  #config .card { text-align: center; }
+  #config h1 {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.42em; text-transform: uppercase;
+    color: #fff;
+  }
+  #config .sub { margin-top: 6px; margin-bottom: 22px; font-size: 11px; letter-spacing: 0.06em; color: var(--txt-3); text-transform: none; }
+  #cfg-brand { margin: 12px 0 10px; display: flex; justify-content: center; padding-inline-start: 34px; }
+  #cfg-brand svg { height: 34px; width: auto; display: block; }
+  #config label {
+    display: block; margin-top: 18px; margin-bottom: 8px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.26em; text-transform: uppercase;
+    color: var(--txt-2);
+    text-align: center;
+  }
+  #config .hint { text-align: center; }
+  #config input, #config select { text-align: center; }
+  #config input::placeholder { text-align: center; }
+  #config input, #config select {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--txt); font: inherit; font-size: 13px;
+    padding: 12px 14px; outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  }
+  #config input::placeholder { color: var(--txt-3); }
+  #config input:focus, #config select:focus {
+    border-color: rgba(167, 139, 250, 0.55);
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.14);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  #config select {
+    appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-inline-end: 36px;
+  }
+  #config select option { background: #14141c; }
+  #config .hint { margin-top: 7px; font-size: 10px; color: var(--txt-3); letter-spacing: 0.12em; text-transform: uppercase; line-height: 1.6; }
+  #config .hint-err { color: #ff9b9b; }
+  #config .seg {
+    display: flex; gap: 4px;
+    padding: 4px; border-radius: 13px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  #config .seg button {
+    flex: 1; border: none; border-radius: 10px;
+    background: transparent; color: var(--txt-2);
+    padding: 10px 4px; font: inherit; font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+  #config .seg .eff-na { flex: 1; text-align: center; padding: 10px 4px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt-3); }
+  #config .seg button:hover { color: var(--txt); }
+  #config .seg button.on {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(167, 139, 250, 0.28), rgba(103, 232, 249, 0.20));
+    box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.35), 0 3px 10px -3px rgba(0, 0, 0, 0.5);
+  }
+  #config .save {
+    width: 100%; margin-top: 28px;
+    border: none; border-radius: 14px;
+    background: var(--accent); color: #0a0a12;
+    padding: 14px 0; font: inherit; font-size: 12px; font-weight: 700;
+    letter-spacing: 0.28em; text-transform: uppercase; cursor: pointer;
+    box-shadow: 0 10px 28px -8px rgba(167, 139, 250, 0.55);
+    transition: transform 0.12s var(--ease), box-shadow 0.2s, filter 0.2s;
+  }
+  #config .save:hover { transform: translateY(-1px); box-shadow: 0 16px 36px -8px rgba(167, 139, 250, 0.65); filter: brightness(1.06); }
+  #config .save:active { transform: translateY(0); }
+  #config .save:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; filter: none; transform: none; }
+  #cfg-close {
+    position: absolute; top: 20px; inset-inline-end: 20px;
+    width: 28px; height: 28px; display: none; place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 9px;
+    background: rgba(255, 255, 255, 0.03); color: var(--txt-2);
+    font-size: 13px; cursor: pointer; transition: color 0.15s, background 0.15s;
+  }
+  #cfg-close:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+  #config.dismissible #cfg-close { display: grid; }
+
+  /* ---------- keyframes ---------- */
+  @keyframes pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
+  @keyframes rise-x { from { opacity: 0; transform: translate(-50%, 22px); } to { opacity: 1; transform: translateX(-50%); } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes aurora {
+    0% { transform: translate(-4%, -3%) rotate(0deg); }
+    100% { transform: translate(4%, 3%) rotate(8deg); }
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1180px) { #scene { gap: clamp(28px, 4vw, 60px); } :root { --panel-w: clamp(172px, 20vw, 214px); } }
+  @media (max-width: 1000px) {
+    #scene { flex-direction: column; gap: 20px; padding-bottom: 90px; }
+    .panel { width: min(92vw, 380px); height: 168px; }
+    #status .body { gap: 10px; }
+    #orb-wrap { width: min(64vw, 300px); }
+    #brand { font-size: 11px; letter-spacing: 0.3em; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+  }
+</style>
+</head>
+<body>
+  <div id="bg"></div>
+  <div id="vignette"></div>
+  <div id="grain"></div>
+
+  <div id="brand"><span class="d"></span>Vesper</div>
+  <div id="top-actions">
+    <span id="fullscreen-hint">F basarak tam ekran yapın</span>
+    <button id="gear" type="button" aria-label="settings"><span class="ico">⚙</span><span id="gear-label">Settings</span></button>
+  </div>
+
+  <main id="scene">
+    <section class="panel" id="chat">
+      <div class="kicker"><span class="tick"></span><span id="lbl-conversation">Conversation</span></div>
+      <div id="log"></div>
+    </section>
+
+    <div id="orb-wrap">
+      <div id="ring"></div>
+      <canvas id="orb"></canvas>
+    </div>
+
+    <section class="panel" id="status">
+      <div class="kicker"><span class="tick"></span><span class="state" id="st-state">Idle</span></div>
+      <div class="body">
+        <div class="meter"><i id="st-meter"></i></div>
+        <dl>
+          <div class="kv"><dt id="lbl-words">Words</dt><dd id="st-words">0</dd></div>
+          <div class="kv"><dt id="lbl-lang">Lang</dt><dd id="st-lang">en-US</dd></div>
+          <div class="kv"><dt id="lbl-effort">Effort</dt><dd id="st-effort">—</dd></div>
+          <div class="kv"><dt id="lbl-provider">Provider</dt><dd id="st-provider">—</dd></div>
+          <div class="kv"><dt id="lbl-model">Model</dt><dd id="st-model">—</dd></div>
+        </dl>
+      </div>
+    </section>
+  </main>
+
+  <div id="activity"><span class="dot"></span><span id="act-text">…</span></div>
+
+  <a id="credit" href="https://github.com/furkanccc" target="_blank" rel="noopener noreferrer">github.com/furkanccc</a>
+
+  <div id="config">
+    <div class="card">
+      <button id="cfg-close" type="button" aria-label="close">✕</button>
+      <h1>Vesper</h1>
+      <p class="sub" id="cfg-sub">setup</p>
+
+      <div id="cfg-brand">
+        <svg viewBox="0 0 132 24" role="img" aria-label="NVIDIA" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#76B900" d="M8.948 8.798v-1.43a6.7 6.7 0 0 1 .424-.018c3.922-.124 6.493 3.374 6.493 3.374s-2.774 3.851-5.75 3.851c-.398 0-.787-.062-1.158-.185v-4.346c1.528.185 1.837.857 2.747 2.385l2.04-1.714s-1.492-1.952-4-1.952a6.016 6.016 0 0 0-.796.035m0-4.735v2.138l.424-.027c5.45-.185 9.01 4.47 9.01 4.47s-4.08 4.964-8.33 4.964c-.37 0-.733-.035-1.095-.097v1.325c.3.035.61.062.91.062 3.957 0 6.82-2.023 9.593-4.408.459.371 2.34 1.263 2.73 1.652-2.633 2.208-8.772 3.984-12.253 3.984-.335 0-.653-.018-.971-.053v1.864H24V4.063zm0 10.326v1.131c-3.657-.654-4.673-4.46-4.673-4.46s1.758-1.944 4.673-2.262v1.237H8.94c-1.528-.186-2.73 1.245-2.73 1.245s.68 2.412 2.739 3.11M2.456 10.9s2.164-3.197 6.5-3.533V6.201C4.153 6.59 0 10.653 0 10.653s2.35 6.802 8.948 7.42v-1.237c-4.84-.6-6.492-5.936-6.492-5.936z"/>
+          <text x="31" y="19" font-family="Inter,-apple-system,system-ui,'Segoe UI',sans-serif" font-size="19" font-weight="800" letter-spacing=".5" fill="#fff">NVIDIA</text>
+        </svg>
+      </div>
+
+      <label for="cfg-key"><span id="lbl-key">API Key</span> <span style="opacity:.5" id="lbl-key-opt">(optional)</span></label>
+      <input id="cfg-key" type="password" autocomplete="off" spellcheck="false" placeholder="nvapi-…" />
+      <div class="hint" id="hint-key">stays on this machine · never shared</div>
+      <div class="hint hint-err" id="hint-key-err" style="display:none">enter an NVIDIA key (nvapi-…)</div>
+
+      <label for="cfg-model" id="lbl-model-c">Model</label>
+      <select id="cfg-model"></select>
+      <div class="hint" id="hint-model">pick a model</div>
+
+      <label id="lbl-effort-c">Effort</label>
+      <div class="seg" id="cfg-effort">
+        <button type="button" data-v="low">low</button>
+        <button type="button" data-v="medium">medium</button>
+        <button type="button" data-v="high">high</button>
+      </div>
+
+      <label id="lbl-lang-c">Language</label>
+      <div class="seg" id="cfg-lang">
+        <button type="button" data-v="tr-TR">Türkçe</button>
+        <button type="button" data-v="en-US">English</button>
+      </div>
+
+      <button class="save" id="cfg-save" type="button">Save</button>
+      <p class="hint" id="hint-file" style="text-align:center;margin-top:10px">saved to apikey.json</p>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+
+  /* ================= languages — Vesper only speaks Turkish or English ================= */
+  const primary = (code) => (code || "en").split(/[-_]/)[0];
+  function normalizeLang(code) {
+    return primary(code).toLowerCase() === "tr" ? "tr-TR" : "en-US";
+  }
+  function detectLang() {
+    const prefs = (navigator.languages && navigator.languages.length)
+      ? navigator.languages : [navigator.language || "en-US"];
+    for (const raw of prefs) {
+      if (String(raw).toLowerCase().startsWith("tr")) return "tr-TR";
+    }
+    return "en-US";
+  }
+
+  /* ================= NVIDIA models — the only selectable set ================= *
+   * kind: "normal" (no reasoning) | "hybrid" | "reason"
+   * Current build.nvidia.com catalog (Sep 2026) — old 3.x/qwen2.5-era ids are
+   * end-of-life. Whether a model actually answers depends on what your NVIDIA
+   * account has provisioned; a 404 at chat time means "not enabled for this key". */
+  const MODELS = [
+    { id: "openai/gpt-oss-20b", kind: "hybrid",
+      tr: "OpenAI açık modeli, temiz Türkçe, hızlı MoE — varsayılan",
+      en: "OpenAI open model, clean Turkish, fast MoE — default" },
+    { id: "nvidia/nemotron-3.5-lightning-30b-a3b", kind: "hybrid",
+      tr: "'Lightning' — en düşük gecikme, MoE",
+      en: "'Lightning' — lowest latency, MoE" },
+    { id: "minimaxai/minimax-m3", kind: "reason",
+      tr: "Ağır akıl yürütücü — zor sorular için, günlük sohbette yavaş",
+      en: "Heavy reasoner — for hard questions, slow for everyday chat" },
+    { id: "nvidia/nemotron-3-super-120b-a12b", kind: "hybrid",
+      tr: "NVIDIA amiral gemisi, MoE, isteğe bağlı akıl yürütme",
+      en: "NVIDIA flagship, MoE, optional reasoning" },
+    { id: "nvidia/nemotron-3-ultra-550b-a55b", kind: "reason",
+      tr: "NVIDIA'nın en büyük modeli — en güçlü ama yavaş",
+      en: "NVIDIA's largest model — most capable, slow" },
+    { id: "nvidia/nemotron-nano-3-30b-a3b", kind: "normal",
+      tr: "Hızlı nano MoE",
+      en: "Fast nano MoE" },
+    { id: "mistralai/mistral-nemotron", kind: "normal",
+      tr: "Talimat takibi + fonksiyon çağırma güçlü",
+      en: "Strong instruction following + function calling" },
+    { id: "mistralai/mistral-large-2-instruct", kind: "normal",
+      tr: "Sağlam Avrupa çok dilli, doğal ton",
+      en: "Solid European multilingual, natural tone" },
+    { id: "google/gemma-4-31b-it", kind: "normal",
+      tr: "Google'ın yoğun 31B modeli, güçlü çok dilli",
+      en: "Google's dense 31B model, strong multilingual" },
+    { id: "deepseek-ai/deepseek-v4-flash-0731", kind: "normal",
+      tr: "Hızlı, kodlama ve ajan görevlerine odaklı",
+      en: "Fast, tuned for coding and agentic tasks" },
+  ];
+  const MODEL_BY_ID = Object.fromEntries(MODELS.map((m) => [m.id, m]));
+
+  const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
+  const isNvidiaKey = (k) => /^nvapi-/.test((k || "").trim());
+
+  // Effort options come straight from the model's declared kind.
+  function effortsFor(model) {
+    const m = MODEL_BY_ID[model];
+    return (m && (m.kind === "reason" || m.kind === "hybrid")) ? ["low", "medium", "high"] : [];
+  }
+
+  /* ================= UI strings — Turkish + English only ================= */
+  const I18N = {
+    en: { settings:"settings", fullscreenHint:"Press F for fullscreen", setup:"setup", provider:"Provider", apiKey:"API Key", optional:"(optional)",
+      apiHint:"stays on this machine · never shared",
+      model:"Model", modelHint:"pick a model", pickModel:"— pick a model —",
+      keyBad:"enter an NVIDIA key (starts with nvapi-)",
+      kNormal:"standard", kHybrid:"hybrid", kReason:"reasoning",
+      mFetching:"fetching models…", mFound:(n)=>n+" models — type to filter",
+      mAuth:"key rejected by the provider", mErr:"couldn't fetch — type the model id",
+      mCors:"NVIDIA blocks browser requests — type the id (build.nvidia.com) or use a proxy",
+      effortNA:"this model has no reasoning effort", effortAuto:"effort options from the model",
+      fileHint:"saved to apikey.json next to this file",
+      effort:"Effort", language:"Language", save:"Save", conversation:"Conversation",
+      empty:"Start talking — your words appear here.",
+      idle:"Idle", listening:"Listening", transcribing:"Transcribing", error:"Error", connecting:"Connecting", sTap:"Ready", sPause:"Paused",
+      sThink:"Thinking", sSpeak:"Speaking", sSearch:"Searching",
+      rWords:"Words", rLang:"Lang", rInterim:"Interim", rEffort:"Effort", rModel:"Model",
+      aStart:"starting…", aConn:"connecting…", aListen:"listening", aTrans:"transcribing…", aTap:"tap anywhere to start",
+      aThink:"thinking…", aSpeak:"speaking… (tap to interrupt)", aSearch:"searching the web…", aPause:"paused — tap to listen again",
+      you:"You", vesper:"Vesper",
+      cAuth:"NVIDIA key rejected — check it in settings",
+      cModel:"this model isn't enabled for your key — pick another in settings",
+      cEmpty:"(empty reply)", cErr:"couldn't reach NVIDIA — try again", cSearching:"searching",
+      eNoSR:"this browser has no speech recognition — use Chrome or Edge",
+      eDenied:"microphone permission denied — allow it in the address bar, then tap this",
+      eStuck:"mic didn't start — check macOS Settings › Privacy › Microphone (Chrome must be ON), then tap this to retry",
+      eFork:"{b} doesn't reliably do voice recognition — use Google Chrome, then reopen",
+      eNet:"can't reach the recognition service — needs Chrome/Edge + internet" },
+    tr: { settings:"ayarlar", fullscreenHint:"F basarak tam ekran yapın", setup:"kurulum", provider:"Sağlayıcı", apiKey:"API Anahtarı", optional:"(opsiyonel)",
+      apiHint:"bu bilgisayarda kalır · paylaşılmaz",
+      model:"Model", modelHint:"bir model seç", pickModel:"— model seç —",
+      keyBad:"NVIDIA anahtarı giriniz (nvapi- ile başlar)",
+      kNormal:"normal", kHybrid:"hibrit", kReason:"akıl yürütür",
+      mFetching:"modeller çekiliyor…", mFound:(n)=>n+" model — yazarak filtrele",
+      mAuth:"anahtar sağlayıcı tarafından reddedildi", mErr:"çekilemedi — model kimliğini elle yaz",
+      mCors:"NVIDIA tarayıcı isteklerini engelliyor — kimliği elle yaz (build.nvidia.com) ya da proxy kullan",
+      effortNA:"bu modelin akıl yürütme çabası yok", effortAuto:"çaba seçenekleri modelden",
+      fileHint:"bu dosyanın yanındaki apikey.json'a kaydedilir",
+      effort:"Çaba", language:"Dil", save:"Kaydet", conversation:"Konuşma",
+      empty:"Konuşmaya başla — söylediklerin burada görünür.",
+      idle:"Boşta", listening:"Dinleniyor", transcribing:"Yazıya çevriliyor", error:"Hata", connecting:"Bağlanıyor", sTap:"Hazır", sPause:"Durduruldu",
+      sThink:"Düşünüyor", sSpeak:"Konuşuyor", sSearch:"Aranıyor",
+      rWords:"Kelime", rLang:"Dil", rInterim:"Anlık", rEffort:"Çaba", rModel:"Model",
+      aStart:"başlatılıyor…", aConn:"bağlanıyor…", aListen:"dinleniyor", aTrans:"yazıya çevriliyor…", aTap:"başlamak için ekrana dokun",
+      aThink:"düşünüyor…", aSpeak:"konuşuyor… (kesmek için dokun)", aSearch:"webde aranıyor…", aPause:"durduruldu — tekrar dinlemek için dokun",
+      you:"Sen", vesper:"Vesper",
+      cAuth:"NVIDIA anahtarı reddedildi — ayarlardan kontrol et",
+      cModel:"bu model anahtarında etkin değil — ayarlardan başka model seç",
+      cEmpty:"(boş cevap)", cErr:"NVIDIA'ya ulaşılamadı — tekrar dene", cSearching:"aranıyor",
+      eNoSR:"bu tarayıcıda konuşma tanıma yok — Chrome veya Edge kullan",
+      eDenied:"mikrofon izni reddedildi — adres çubuğundan izin ver, sonra bu yazıya dokun",
+      eStuck:"mikrofon başlamadı — macOS Ayarlar › Gizlilik › Mikrofon'da Chrome açık mı? sonra bu yazıya dokunup tekrar dene",
+      eFork:"{b} sesli tanımayı düzgün desteklemiyor — Google Chrome kullan, sonra tekrar aç",
+      eNet:"tanıma servisine ulaşılamıyor — Chrome/Edge + internet gerekli" },
+  };
+  const t = (k) => {
+    const p = primary(cfg.lang);
+    return (I18N[p] && I18N[p][k]) || I18N.en[k] || k;
+  };
+
+  /* ================= config (disk only; never persisted in the browser) ================= */
+  function clearLegacyBrowserConfig() {
+    try { localStorage.removeItem("vesper.config"); } catch (_) {}
+    try { indexedDB.deleteDatabase("vesper"); } catch (_) {}
+  }
+  clearLegacyBrowserConfig();
+  const DEFAULT = { provider: "nvidia", apiKey: "", model: "", effort: "medium", lang: detectLang() };
+  const loadCfg = () => {
+    return { ...DEFAULT };
+  };
+  let cfg = loadCfg();
+
+  /* ================= apikey.json on disk (File System Access API + fetch) ================= */
+  let fsHandle = null;
+
+  // File shape: { provider, apikey, model, effort, language }
+  const toFile = (c) => JSON.stringify(
+    { provider: "nvidia", apikey: c.apiKey, model: c.model, effort: c.effort, language: c.lang },
+    null, 2) + "\n";
+  const fromFile = (j) => ({
+    provider: "nvidia",
+    apiKey: j.apikey || "", model: j.model || "",
+    effort: j.effort || "medium", lang: normalizeLang(j.language || detectLang()),
+  });
+
+  const hasContent = (o) => o && typeof o === "object" && (o.apikey || o.model);
+
+  async function readDisk() {
+    // The root apikey.json is the only persisted configuration source.
+    try {
+      const r = await fetch("./apikey.json", { cache: "no-store" });
+      if (r.ok) {
+        const j = await r.json();
+        if (hasContent(j)) return fromFile(j);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  async function writeDisk(c) {
+    const data = toFile(c);
+    try {
+      if (!fsHandle && window.showSaveFilePicker) {
+        fsHandle = await window.showSaveFilePicker({
+          suggestedName: "apikey.json",
+          types: [{ description: "JSON", accept: { "application/json": [".json"] } }],
+        });
+      }
+      if (fsHandle) {
+        const w = await fsHandle.createWritable();
+        await w.write(data);
+        await w.close();
+        return;
+      }
+    } catch (_) { /* cancelled or unsupported */ }
+    // fallback: hand the user the file to drop next to vesper.html
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+      a.download = "apikey.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (_) {}
+  }
+
+  /* ================= state ================= */
+  const S = { energy: 0, words: 0, interim: "", phase: "boot", err: null, turns: [], want: false };
+
+  /* ================= WebGL orb (raw, no library) ================= */
+  const orbCanvas = $("#orb");
+  const gl = orbCanvas.getContext("webgl", { alpha: true, premultipliedAlpha: false, antialias: true });
+
+  const VERT = `precision highp float;
+    attribute vec2 position; varying vec2 vUv;
+    void main(){ vUv = position*0.5+0.5; gl_Position = vec4(position,0.0,1.0); }`;
+
+  const FRAG = `precision highp float;
+    uniform float iTime; uniform vec3 iResolution;
+    uniform float hue; uniform float hover; uniform float rot; uniform float hoverIntensity;
+    varying vec2 vUv;
+    vec3 rgb2yiq(vec3 c){ return vec3(dot(c,vec3(0.299,0.587,0.114)),dot(c,vec3(0.596,-0.274,-0.322)),dot(c,vec3(0.211,-0.523,0.312))); }
+    vec3 yiq2rgb(vec3 c){ return vec3(c.x+0.956*c.y+0.621*c.z,c.x-0.272*c.y-0.647*c.z,c.x-1.106*c.y+1.703*c.z); }
+    vec3 adjustHue(vec3 col,float hd){ float hr=hd*3.14159265/180.0; vec3 y=rgb2yiq(col); float ca=cos(hr),sa=sin(hr);
+      float i=y.y*ca-y.z*sa; float q=y.y*sa+y.z*ca; y.y=i; y.z=q; return yiq2rgb(y); }
+    vec3 hash33(vec3 p){ p=fract(p*vec3(0.1031,0.11369,0.13787)); p+=dot(p,p.yxz+19.19);
+      return -1.0+2.0*fract(vec3(p.x+p.y,p.x+p.z,p.y+p.z)*p.zyx); }
+    float snoise3(vec3 p){ const float K1=0.333333333,K2=0.166666667;
+      vec3 i=floor(p+(p.x+p.y+p.z)*K1); vec3 d0=p-(i-(i.x+i.y+i.z)*K2);
+      vec3 e=step(vec3(0.0),d0-d0.yzx); vec3 i1=e*(1.0-e.zxy); vec3 i2=1.0-e.zxy*(1.0-e);
+      vec3 d1=d0-(i1-K2); vec3 d2=d0-(i2-K1); vec3 d3=d0-0.5;
+      vec4 h=max(0.6-vec4(dot(d0,d0),dot(d1,d1),dot(d2,d2),dot(d3,d3)),0.0);
+      vec4 n=h*h*h*h*vec4(dot(d0,hash33(i)),dot(d1,hash33(i+i1)),dot(d2,hash33(i+i2)),dot(d3,hash33(i+1.0)));
+      return dot(vec4(31.316),n); }
+    vec4 extractAlpha(vec3 c){ float a=max(max(c.r,c.g),c.b); return vec4(c.rgb/(a+1e-5),a); }
+    const vec3 baseColor1=vec3(0.611765,0.262745,0.996078);
+    const vec3 baseColor2=vec3(0.298039,0.760784,0.913725);
+    const vec3 baseColor3=vec3(0.062745,0.078431,0.6);
+    const float innerRadius=0.6; const float noiseScale=0.65;
+    float light1(float i,float a,float d){ return i/(1.0+d*a); }
+    float light2(float i,float a,float d){ return i/(1.0+d*d*a); }
+    vec4 draw(vec2 uv){
+      vec3 c1=adjustHue(baseColor1,hue),c2=adjustHue(baseColor2,hue),c3=adjustHue(baseColor3,hue);
+      float ang=atan(uv.y,uv.x); float len=length(uv); float il=len>0.0?1.0/len:0.0;
+      float n0=snoise3(vec3(uv*noiseScale,iTime*0.5))*0.5+0.5;
+      float r0=mix(mix(innerRadius,1.0,0.4),mix(innerRadius,1.0,0.6),n0);
+      float d0=distance(uv,(r0*il)*uv); float v0=light1(1.0,10.0,d0); v0*=smoothstep(r0*1.05,r0,len);
+      float cl=cos(ang+iTime*2.0)*0.5+0.5;
+      float a=iTime*-1.0; vec2 pos=vec2(cos(a),sin(a))*r0; float d=distance(uv,pos);
+      float v1=light2(1.5,5.0,d); v1*=light1(1.0,50.0,d0);
+      float v2=smoothstep(1.0,mix(innerRadius,1.0,n0*0.5),len);
+      float v3=smoothstep(innerRadius,mix(innerRadius,1.0,0.5),len);
+      vec3 col=mix(c1,c2,cl); col=mix(c3,col,v0); col=(col+v1)*v2*v3; col=clamp(col,0.0,1.0);
+      return extractAlpha(col);
+    }
+    void main(){
+      vec2 center=iResolution.xy*0.5; float size=min(iResolution.x,iResolution.y);
+      vec2 uv=(gl_FragCoord.xy-center)/size*2.0;
+      float s=sin(rot),c=cos(rot); uv=vec2(c*uv.x-s*uv.y,s*uv.x+c*uv.y);
+      uv.x+=hover*hoverIntensity*0.1*sin(uv.y*10.0+iTime);
+      uv.y+=hover*hoverIntensity*0.1*sin(uv.x*10.0+iTime);
+      vec4 col=draw(uv); gl_FragColor=vec4(col.rgb*col.a,col.a);
+    }`;
+
+  let orbOk = false, U = {}, startTime = performance.now(), rot = 0, lastFrame = startTime;
+  if (gl) {
+    const compile = (type, src) => {
+      const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+      return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : (console.warn(gl.getShaderInfoLog(sh)), null);
+    };
+    const vs = compile(gl.VERTEX_SHADER, VERT), fs = compile(gl.FRAGMENT_SHADER, FRAG);
+    if (vs && fs) {
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+      if (gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        gl.useProgram(prog);
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, "position");
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+        for (const n of ["iTime","iResolution","hue","hover","rot","hoverIntensity"]) U[n] = gl.getUniformLocation(prog, n);
+        gl.clearColor(0,0,0,0); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        orbOk = true;
+      }
+    }
+  }
+  const resizeOrb = () => {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    orbCanvas.width = Math.max(1, orbCanvas.clientWidth * dpr);
+    orbCanvas.height = Math.max(1, orbCanvas.clientHeight * dpr);
+    if (gl) gl.viewport(0, 0, orbCanvas.width, orbCanvas.height);
+  };
+  window.addEventListener("resize", resizeOrb);
+  resizeOrb();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min((now - lastFrame) / 1000, 0.05); lastFrame = now;
+    S.energy *= Math.pow(0.12, dt);
+    rot += dt * (0.25 + S.energy * 1.6);
+    if (orbOk) {
+      gl.uniform1f(U.iTime, (now - startTime) / 1000);
+      gl.uniform3f(U.iResolution, orbCanvas.width, orbCanvas.height, orbCanvas.width / orbCanvas.height);
+      gl.uniform1f(U.hue, 0);
+      gl.uniform1f(U.hover, Math.min(S.energy * 1.6, 1));
+      gl.uniform1f(U.rot, rot);
+      gl.uniform1f(U.hoverIntensity, Math.min(S.energy * 0.7, 0.8));
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    $("#st-meter").style.width = Math.round(Math.min(S.energy, 1) * 100) + "%";
+  }
+  requestAnimationFrame(frame);
+
+  /* ================= rendering ================= */
+  const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+  function applyStaticI18n() {
+    document.documentElement.lang = primary(cfg.lang);
+    $("#gear").title = t("settings");
+    $("#gear-label").textContent = t("settings");
+    $("#fullscreen-hint").textContent = t("fullscreenHint");
+    $("#lbl-conversation").textContent = t("conversation");
+    $("#lbl-words").textContent = t("rWords");
+    $("#lbl-lang").textContent = t("rLang");
+    $("#lbl-effort").textContent = t("rEffort");
+    $("#lbl-model").textContent = t("rModel");
+    $("#lbl-provider").textContent = t("provider");
+    $("#cfg-sub").textContent = t("setup");
+    $("#lbl-key").textContent = t("apiKey");
+    $("#lbl-key-opt").textContent = t("optional");
+    $("#hint-key").textContent = t("apiHint");
+    $("#lbl-model-c").textContent = t("model");
+    $("#hint-model").textContent = t("modelHint");
+    $("#hint-key-err").textContent = t("keyBad");
+    $("#lbl-effort-c").textContent = t("effort");
+    $("#lbl-lang-c").textContent = t("language");
+    $("#cfg-save").textContent = t("save");
+    $("#hint-file").textContent = t("fileHint");
+  }
+
+  function renderLog() {
+    const log = $("#log");
+    if (!S.turns.length && !S.interim) {
+      log.innerHTML = `<p class="empty">${escapeHtml(t("empty"))}</p>`;
+      return;
+    }
+    const parts = S.turns.map((x) => {
+      const body = x.text
+        ? escapeHtml(x.text)
+        : x.who === "vesper" ? `<span class="dots"><i></i><i></i><i></i></span>` : "";
+      return `<div class="line ${x.who}"><span class="who">${x.who === "you" ? t("you") : t("vesper")} —</span> ${body}</div>`;
+    });
+    if (S.interim)
+      parts.push(`<div class="line you interim"><span class="who">${t("you")} —</span> ${escapeHtml(S.interim)}</div>`);
+    log.innerHTML = parts.join("");
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function renderStatus() {
+    const map = { transcribing:"transcribing", listening:"listening", error:"error", connecting:"connecting", tap:"sTap", thinking:"sThink", speaking:"sSpeak", searching:"sSearch", paused:"sPause" };
+    $("#st-state").textContent = t(map[S.phase] || "idle");
+    $("#status").classList.toggle("live", ["listening","transcribing","thinking","speaking","searching"].includes(S.phase));
+    $("#st-words").textContent = String(S.words);
+    $("#st-lang").textContent = cfg.lang;
+    $("#st-effort").textContent = cfg.effort || "—";
+    $("#st-provider").textContent = "NVIDIA";
+    $("#st-model").textContent = cfg.model || "—";
+    $("#st-model").title = cfg.model || "";
+  }
+
+  function renderActivity() {
+    const el = $("#activity");
+    const A = { boot:"aStart", connecting:"aConn", listening:"aListen", transcribing:"aTrans", tap:"aTap", thinking:"aThink", speaking:"aSpeak", searching:"aSearch", paused:"aPause" };
+    $("#act-text").textContent = S.phase === "error" ? (S.err || t("error")) : t(A[S.phase] || "aListen");
+    el.classList.toggle("busy", ["boot","connecting","listening","transcribing","thinking","speaking","searching"].includes(S.phase));
+    el.classList.toggle("err", S.phase === "error");
+    el.classList.toggle("tap", S.phase === "tap" || S.phase === "paused");
+    el.classList.toggle("speak", S.phase === "speaking");
+  }
+
+  const render = () => { renderLog(); renderStatus(); renderActivity(); };
+  const setPhase = (p, err) => { S.phase = p; S.err = err || null; renderActivity(); renderStatus(); };
+
+  /* ================= speech recognition ================= */
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const UA = navigator.userAgent;
+  const BROWSER = navigator.brave ? "Brave"
+    : /\bOPR\/|\bOPERA\b/i.test(UA) ? "Opera"
+    : /\bVivaldi\//.test(UA) ? "Vivaldi"
+    : /\bSamsungBrowser\//.test(UA) ? "Samsung Internet"
+    : /\bEdg\//.test(UA) ? "Edge"
+    : /\bFirefox\//.test(UA) ? "Firefox"
+    : /\bCriOS\//.test(UA) ? "Chrome (iOS)"
+    : /\bChrome\//.test(UA) ? "Chrome"
+    : /\bSafari\//.test(UA) ? "Safari" : "tarayıcı";
+  const SPEECH_RELIABLE = BROWSER === "Chrome" || BROWSER === "Edge";
+
+  let rec = null, restartT = 0, watchT = 0, tries = 0;
+
+  function stopRecognition() {
+    S.want = false;
+    clearTimeout(restartT);
+    clearTimeout(watchT);
+    if (rec) { try { rec.onend = null; rec.abort ? rec.abort() : rec.stop(); } catch (_) {} rec = null; }
+  }
+
+  function stuckMsg() {
+    return (SPEECH_RELIABLE ? t("eStuck") : t("eFork").replace("{b}", BROWSER)) + "  ·  [" + BROWSER + "]";
+  }
+
+  // "tap to start" — Chrome will not start SpeechRecognition without a gesture.
+  // Just parks in the "tap" phase; the single global click/keydown dispatcher
+  // (wired further down, once) does the actual starting — see orbTap().
+  function armStart() {
+    stopRecognition();
+    tries = 0;
+    if (!SR) { setPhase("error", t("eNoSR")); return; }
+    if (!SPEECH_RELIABLE) { setPhase("error", t("eFork").replace("{b}", BROWSER)); return; }
+    setPhase("tap");
+  }
+
+  function startRecognition() {
+    stopRecognition();
+    if (!SR) { setPhase("error", t("eNoSR")); return; }
+    S.want = true;
+    tries++;
+    setPhase("connecting");
+
+    rec = new SR();
+    rec.lang = cfg.lang;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+
+    const live = () => { tries = 0; clearTimeout(watchT); if (S.phase !== "transcribing") setPhase("listening"); };
+    rec.onstart = live;
+    rec.onaudiostart = live;
+    rec.onsoundstart = live;
+    rec.onspeechstart = live;
+
+    rec.onresult = (e) => {
+      tries = 0; clearTimeout(watchT);
+      if (convoBusy || Date.now() < micCooldown) { S.interim = ""; return; } // ignore while Vesper talks
+      let interim = "", finals = [];
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (r.isFinal) finals.push(r[0].transcript.trim());
+        else interim += r[0].transcript;
+      }
+      for (const f of finals) {
+        if (!f) continue;
+        S.words += f.split(/\s+/).filter(Boolean).length;
+        S.energy = 1;
+        ask(f);
+      }
+      S.interim = interim.trim();
+      if (S.interim) { S.energy = Math.max(S.energy, 0.65); setPhase("transcribing"); }
+      else if (S.phase === "transcribing") setPhase("listening");
+      render();
+    };
+
+    rec.onerror = (e) => {
+      const err = e && e.error;
+      if (err === "no-speech" || err === "aborted") return;
+      clearTimeout(watchT);
+      if (err === "not-allowed" || err === "service-not-allowed") {
+        S.want = false; return setPhase("error", t("eDenied"));
+      }
+      if (err === "network") { S.want = false; return setPhase("error", t("eNet")); }
+      S.want = false; setPhase("error", stuckMsg());
+    };
+
+    rec.onend = () => {
+      S.interim = ""; renderLog();
+      if (S.want && (S.phase === "listening" || S.phase === "transcribing"))
+        restartT = setTimeout(() => { try { rec.start(); } catch (_) {} }, 250);
+    };
+
+    try {
+      rec.start();
+    } catch (e) {
+      if (e && e.name !== "InvalidStateError") { S.want = false; setPhase("error", stuckMsg()); return; }
+    }
+
+    // watchdog: never hang on "connecting". Long, because the mic-permission
+    // prompt can sit open for a while before onstart fires.
+    clearTimeout(watchT);
+    watchT = setTimeout(() => {
+      if (S.phase !== "connecting") return;
+      if (tries < 2) { startRecognition(); }        // one clean retry
+      else { stopRecognition(); setPhase("error", stuckMsg()); }
+    }, 12000);
+  }
+
+  /* ================= conversation: NVIDIA chat (streaming) + TTS ================= */
+  const CHAT_URL = "/nvidia/v1/chat/completions";
+  // The reply language is fixed by what was picked at setup, not by whatever
+  // language the user happens to speak to it in — this instruction is what
+  // enforces that regardless of the transcribed input language.
+  function sysPromptFor(lang) {
+    return lang === "tr-TR"
+      ? "Senin adın Vesper. Türkçe konuşan bir sesli asistansın. Kullanıcı hangi dilde " +
+        "yazarsa yazsın SEN HER ZAMAN TÜRKÇE cevap ver — bu değişmez bir kural. Kısa, net " +
+        "ve sohbet havasında cevap ver — genellikle 1-3 cümle. Cevabın sesli okunacağı için " +
+        "madde işareti, başlık, kod bloğu, emoji, markdown kullanma; düz cümle kur. " +
+        "Hava durumu, güncel haberler, fiyatlar, skorlar gibi şu an gerçek olan ya da " +
+        "senin bilgi kesim tarihinden sonra değişmiş olabilecek şeyler sorulursa " +
+        "tahmin etme — web_search aracını kullan, sonra sonuçlara göre cevap ver."
+      : "Your name is Vesper, a spoken voice assistant. No matter what language the user " +
+        "writes in, you ALWAYS reply in ENGLISH — this is a fixed rule. Keep answers short, " +
+        "clear, and conversational — usually 1-3 sentences. Since your reply will be read " +
+        "aloud, don't use bullet points, headings, code blocks, emoji, or markdown; write " +
+        "plain sentences. If asked about weather, news, prices, scores, or anything that's " +
+        "true right now or may have changed since your knowledge cutoff, don't guess — use " +
+        "the web_search tool, then answer from the results.";
+  }
+  let history = [{ role: "system", content: sysPromptFor(cfg.lang) }];
+  let convoBusy = false;
+  let micCooldown = 0;
+  let chatAbort = null;
+
+  // The only tool Vesper has: a live web search, executed server-side by the proxy.
+  const TOOLS = [{
+    type: "function",
+    function: {
+      name: "web_search",
+      description:
+        "Search the live web. Use for anything time-sensitive or possibly outdated: " +
+        "weather, news, prices, sports scores, current events, or facts you're not sure of.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "concise search query" } },
+        required: ["query"],
+      },
+    },
+  }];
+  const safeJSON = (s) => { try { return JSON.parse(s); } catch (_) { return null; } };
+
+  async function runTool(name, args) {
+    if (name === "web_search") {
+      const q = ((args && args.query) || "").trim();
+      if (!q) return { error: "empty query" };
+      try {
+        const r = await fetch("/search?q=" + encodeURIComponent(q));
+        const j = await r.json();
+        return { query: q, results: (j.results || []).slice(0, 5) };
+      } catch (e) {
+        return { error: String((e && e.message) || e) };
+      }
+    }
+    return { error: "unknown tool: " + name };
+  }
+
+  const stripThink = (s) => (s || "")
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/^\s*(here'?s a thinking process[\s\S]*?)(?=\n\n|\n[A-ZÇĞİÖŞÜ])/i, "")
+    .trim();
+
+  // TTS — tries the local offline Piper voice first (/tts, run by piper_server.py
+  // via openvesper.command), falls back to the browser's built-in voice per
+  // sentence if Piper isn't running or has no voice for the current language.
+  let ttsQueue = [], ttsPlaying = false, ttsAudio = null;
+  function pickVoice() {
+    const vs = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+    const want = primary(cfg.lang);
+    return vs.find((v) => (v.lang || "").toLowerCase() === cfg.lang.toLowerCase())
+        || vs.find((v) => (v.lang || "").toLowerCase().startsWith(want));
+  }
+  function speakBrowser(text) {
+    return new Promise((resolve) => {
+      if (!window.speechSynthesis) return resolve();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = cfg.lang;
+      const v = pickVoice();
+      if (v) u.voice = v;
+      u.rate = 1.03;
+      u.onend = u.onerror = () => resolve();
+      speechSynthesis.speak(u);
+    });
+  }
+  function speakPiper(text) {
+    return fetch("/tts?lang=" + encodeURIComponent(cfg.lang) + "&text=" + encodeURIComponent(text))
+      .then((r) => { if (!r.ok) throw new Error("piper " + r.status); return r.blob(); })
+      .then((blob) => new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const a = new Audio(url);
+        ttsAudio = a;
+        const done = (fn) => () => { URL.revokeObjectURL(url); if (ttsAudio === a) ttsAudio = null; fn(); };
+        a.onended = done(resolve);
+        a.onerror = done(() => reject(new Error("audio error")));
+        a.play().catch(done(() => reject(new Error("audio play failed"))));
+      }));
+  }
+  async function drainTts() {
+    if (ttsPlaying) return;
+    const text = ttsQueue.shift();
+    if (text == null) { ttsPlaying = false; return; }
+    ttsPlaying = true;
+    try { await speakPiper(text); }
+    catch (_) { try { await speakBrowser(text); } catch (_) {} }
+    ttsPlaying = false;
+    micCooldown = Date.now() + 700;
+    drainTts();
+  }
+  function stripEmojiForSpeech(text) {
+    return (text || "")
+      .replace(/[0-9#*]\uFE0F?\u20E3/gu, "")
+      .replace(/[\u{1F1E6}-\u{1F1FF}]{2}/gu, "")
+      .replace(/\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji_Modifier}/gu, "")
+      .replace(/[\u200D\uFE0E\uFE0F\u20E3]/gu, "")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+  }
+  function enqueueSpeech(text) {
+    const t = stripEmojiForSpeech(text);
+    if (!t) return;
+    ttsQueue.push(t);
+    drainTts();
+  }
+  function stopSpeech() {
+    ttsQueue = []; ttsPlaying = false;
+    try { window.speechSynthesis && speechSynthesis.cancel(); } catch (_) {}
+    if (ttsAudio) { try { ttsAudio.pause(); } catch (_) {} ttsAudio = null; }
+  }
+
+  // stream one chat-completion call; returns { content, toolCalls, ok, err }
+  async function streamChat(botTurn) {
+    const body = {
+      model: cfg.model,
+      messages: history,
+      stream: true,
+      temperature: 0.6,
+      max_tokens: 700,
+      tools: TOOLS,
+      tool_choice: "auto",
+    };
+    if (cfg.effort) body.reasoning_effort = cfg.effort;
+
+    const send = (b) => fetch(CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey },
+      body: JSON.stringify(b),
+      signal: chatAbort.signal,
+    });
+
+    let r = await send(body);
+    if (!r.ok && (r.status === 400 || r.status === 422)) {
+      // some models reject an unknown `tools` param outright — retry without it
+      const b2 = { ...body }; delete b2.tools; delete b2.tool_choice;
+      r = await send(b2);
+    }
+    if (!r.ok) {
+      let msg = "HTTP " + r.status;
+      try { const j = await r.json(); msg = j.detail || j.title || j.message || msg; } catch (_) {}
+      if (r.status === 401 || r.status === 403) msg = t("cAuth");
+      else if (r.status === 404) msg = t("cModel");
+      throw new Error(msg);
+    }
+
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "", full = "", spokenUpto = 0, toolAcc = {}, hasTools = false;
+
+    const flush = (done) => {
+      if (hasTools) return;
+      const clean = stripThink(full);
+      botTurn.text = clean || (done ? "" : botTurn.text);
+      render();
+      const pending = clean.slice(spokenUpto);
+      const parts = pending.split(/(?<=[.!?…])\s+|\n+/);
+      const keep = done ? parts.length : parts.length - 1;
+      for (let i = 0; i < keep; i++) {
+        if (parts[i].trim()) { enqueueSpeech(parts[i]); spokenUpto += parts[i].length + 1; }
+      }
+      if (done) { const rest = clean.slice(spokenUpto); if (rest.trim()) enqueueSpeech(rest); }
+    };
+
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s.startsWith("data:")) continue;
+        const payload = s.slice(5).trim();
+        if (payload === "[DONE]") continue;
+        const j = safeJSON(payload);
+        const delta = j && j.choices && j.choices[0] && j.choices[0].delta;
+        if (!delta) continue;
+        if (delta.tool_calls) {
+          hasTools = true;
+          for (const dc of delta.tool_calls) {
+            const i = dc.index || 0;
+            if (!toolAcc[i]) toolAcc[i] = { id: dc.id || ("call_" + i), type: "function", function: { name: "", arguments: "" } };
+            if (dc.id) toolAcc[i].id = dc.id;
+            if (dc.function) {
+              if (dc.function.name) toolAcc[i].function.name = dc.function.name;
+              if (dc.function.arguments) toolAcc[i].function.arguments += dc.function.arguments;
+            }
+          }
+        }
+        if (delta.content) {
+          full += delta.content;
+          if (!hasTools) { if (S.phase !== "speaking") setPhase("speaking"); flush(false); }
+        }
+      }
+    }
+    flush(true);
+    const toolCalls = Object.keys(toolAcc).sort((a, b) => a - b).map((k) => toolAcc[k]);
+    return { content: stripThink(full).trim(), toolCalls };
+  }
+
+  async function ask(userText) {
+    const text = (userText || "").trim();
+    if (!text || convoBusy) return;
+    convoBusy = true;
+    stopSpeech();
+    // Hard-mute immediately: tear the recognizer down completely (not just a
+    // flag) so Vesper's own voice can never come back as a late "result" —
+    // speech-recognition results can land a second or more after the audio.
+    stopRecognition();
+
+    const histLenAtStart = history.length;
+    S.turns.push({ who: "you", text });
+    const botTurn = { who: "vesper", text: "" };
+    S.turns.push(botTurn);
+    history.push({ role: "user", content: text });
+    setPhase("thinking"); render();
+    chatAbort = new AbortController();
+
+    try {
+      let finalText = "";
+      for (let round = 0; round < 3; round++) {
+        const { content, toolCalls } = await streamChat(botTurn);
+        if (toolCalls.length) {
+          history.push({ role: "assistant", content: content || null, tool_calls: toolCalls });
+          const q0 = safeJSON(toolCalls[0].function.arguments || "{}");
+          botTurn.text = "🔍 " + t("cSearching") + (q0 && q0.query ? ` “${q0.query}”` : "");
+          setPhase("searching"); render();
+          for (const tc of toolCalls) {
+            const args = safeJSON(tc.function.arguments || "{}") || {};
+            const result = await runTool(tc.function.name, args);
+            history.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: JSON.stringify(result).slice(0, 6000) });
+          }
+          botTurn.text = "";
+          setPhase("thinking"); render();
+          continue; // ask the model again, now with search results in context
+        }
+        finalText = content;
+        break;
+      }
+      if (!finalText) finalText = t("cEmpty");
+      botTurn.text = finalText;
+      history.push({ role: "assistant", content: finalText });
+      if (history.length > 25) history = [history[0], ...history.slice(-24)];
+    } catch (e) {
+      botTurn.text = "⚠ " + (e && e.message ? e.message : t("cErr"));
+      history.length = histLenAtStart; // roll back this whole turn (incl. any tool exchange)
+    }
+
+    render();
+    // wait for speech to finish before listening again
+    const waitTts = () => new Promise((res) => {
+      const tick = () => (!ttsPlaying && ttsQueue.length === 0) ? res() : setTimeout(tick, 150);
+      tick();
+    });
+    await waitTts();
+    convoBusy = false;
+    // small settle delay — lets the room's echo of Vesper's own voice decay
+    // before the mic is live again — then start a brand-new recognizer.
+    setTimeout(() => { if (!convoBusy) startRecognition(); }, 400);
+  }
+
+  // stop Vesper mid-answer by tapping the orb / bottom bar
+  function interrupt() {
+    if (!convoBusy) return;
+    try { chatAbort && chatAbort.abort(); } catch (_) {}
+    stopSpeech();
+    convoBusy = false;
+    startRecognition();
+  }
+
+  /* ================= config modal ================= */
+  const modal = $("#config");
+  let pendingEffort = cfg.effort;
+  let pendingLang = cfg.lang;
+
+  function renderLangSeg() {
+    $("#cfg-lang").querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("on", b.dataset.v === pendingLang);
+    });
+  }
+  $("#cfg-lang").querySelectorAll("button").forEach((b) => {
+    b.addEventListener("click", () => {
+      pendingLang = b.dataset.v;
+      renderLangSeg();
+      // live-preview the UI in the picked language before saving
+      const saved = cfg.lang;
+      cfg.lang = pendingLang;
+      applyStaticI18n();
+      fillModelSelect();
+      $("#cfg-model").value = cfg.model || "";
+      showModelDesc();
+      renderEffort();
+      cfg.lang = saved;
+    });
+  });
+
+  const kindLabel = (k) => k === "reason" ? t("kReason") : k === "hybrid" ? t("kHybrid") : t("kNormal");
+
+  function fillModelSelect() {
+    $("#cfg-model").innerHTML =
+      `<option value="">${escapeHtml(t("pickModel"))}</option>` +
+      MODELS.map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.id)}</option>`).join("");
+  }
+
+  function showModelDesc() {
+    const m = MODEL_BY_ID[$("#cfg-model").value];
+    const el = $("#hint-model");
+    if (!m) { el.textContent = t("modelHint"); return; }
+    el.textContent = kindLabel(m.kind).toUpperCase() + " · " + (m[primary(cfg.lang)] || m.en);
+  }
+
+  // rebuild the effort control from the model's declared kind
+  function renderEffort() {
+    const opts = effortsFor($("#cfg-model").value);
+    const wrap = $("#cfg-effort");
+    if (!opts.length) {
+      pendingEffort = "";
+      wrap.innerHTML = `<span class="eff-na">${escapeHtml(t("effortNA"))}</span>`;
+      return;
+    }
+    if (!opts.includes(pendingEffort)) pendingEffort = opts.includes("medium") ? "medium" : opts[0];
+    wrap.innerHTML = opts
+      .map((v) => `<button type="button" data-v="${v}"${v === pendingEffort ? ' class="on"' : ""}>${v}</button>`)
+      .join("");
+    wrap.querySelectorAll("button").forEach((b) => {
+      b.addEventListener("click", () => {
+        pendingEffort = b.dataset.v;
+        wrap.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+      });
+    });
+  }
+
+  // API key must be an NVIDIA key (or left blank); model must be chosen.
+  function keyState() {
+    const k = $("#cfg-key").value.trim();
+    return !k ? "empty" : isNvidiaKey(k) ? "ok" : "bad";
+  }
+  function refreshSave() {
+    const bad = keyState() === "bad";
+    $("#hint-key-err").style.display = bad ? "" : "none";
+    $("#cfg-save").disabled = !$("#cfg-model").value || bad;
+  }
+  $("#cfg-key").addEventListener("input", refreshSave);
+  $("#cfg-model").addEventListener("change", () => { showModelDesc(); renderEffort(); refreshSave(); });
+
+  function openConfig() {
+    pendingEffort = cfg.effort;
+    pendingLang = cfg.lang;
+    $("#cfg-key").value = cfg.apiKey;
+    fillModelSelect();
+    $("#cfg-model").value = MODEL_BY_ID[cfg.model] ? cfg.model : "";
+    showModelDesc();
+    renderEffort();
+    renderLangSeg();
+    refreshSave();
+    modal.classList.toggle("dismissible", !!cfg.model); // X / Esc only once a model is set
+    modal.classList.add("open");
+  }
+  const closeConfig = () => { if (cfg.model) modal.classList.remove("open"); };
+
+  $("#cfg-save").addEventListener("click", () => {
+    const model = $("#cfg-model").value;
+    if (!model || keyState() === "bad") { refreshSave(); return; }
+    cfg = {
+      provider: "nvidia",
+      apiKey: $("#cfg-key").value.trim(),
+      model: model,
+      effort: pendingEffort,
+      lang: pendingLang,
+    };
+    history[0] = { role: "system", content: sysPromptFor(cfg.lang) };
+    const writing = writeDisk(cfg);     // apikey.json (starts the file picker within this click)
+    modal.classList.remove("open");
+    applyStaticI18n();
+    render();
+    startRecognition();
+    void writing;
+  });
+
+  // One tap target for the whole mic lifecycle:
+  //  listening/transcribing            → pause (mic off, won't respond)
+  //  paused / tap                      → resume listening
+  //  thinking / speaking / searching   → interrupt Vesper
+  //  error                             → retry
+  // "connecting" is deliberately left alone — it's the brief moment right
+  // after a start, and reacting to it too is what caused the double-toggle.
+  function orbTap() {
+    if (S.phase === "thinking" || S.phase === "speaking" || S.phase === "searching") { interrupt(); return; }
+    if (S.phase === "error") { tries = 0; startRecognition(); return; }
+    if (S.phase === "tap" || S.phase === "paused") { startRecognition(); return; }
+    if (S.phase === "listening" || S.phase === "transcribing") { stopRecognition(); setPhase("paused"); return; }
+  }
+
+  function isTypingTarget(target) {
+    return !!(target && target.closest && target.closest("input, textarea, select, [contenteditable='true']"));
+  }
+
+  async function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      return;
+    }
+    if (document.documentElement.requestFullscreen)
+      await document.documentElement.requestFullscreen();
+  }
+
+  async function handleFullscreenKey(event) {
+    if (!event.key || event.key.toLowerCase() !== "f" || event.repeat || event.metaKey || event.ctrlKey || event.altKey)
+      return;
+    if (isTypingTarget(event.target)) return;
+    event.preventDefault();
+    try { await toggleFullscreen(); } catch (_) {}
+  }
+
+  // A single click/keydown dispatcher for the whole page — avoids two
+  // independent listeners (e.g. a global "tap anywhere" + a button's own
+  // click) firing for the same physical tap and toggling twice.
+  document.addEventListener("click", (e) => {
+    const el = e.target;
+    if (el.closest && (el.closest("#gear") || el.closest("#config"))) return;
+    if (S.phase === "tap") { orbTap(); return; }
+    if (el.closest && (el.closest("#orb-wrap") || el.closest("#activity"))) orbTap();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" || e.key.toLowerCase() === "f" || modal.classList.contains("open")) return;
+    if (S.phase === "tap") orbTap();
+  });
+  document.addEventListener("keydown", handleFullscreenKey);
+
+  $("#gear").addEventListener("click", openConfig);
+  $("#cfg-close").addEventListener("click", closeConfig);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeConfig(); });
+  // clicking the dark backdrop does NOT dismiss — only the X / Escape (and only after a save)
+
+  /* ================= boot ================= */
+  (async () => {
+    // baseline: always empty; only a non-empty apikey.json may unlock the app
+    const disk = await readDisk();
+    if (disk) cfg = disk;
+    history[0] = { role: "system", content: sysPromptFor(cfg.lang) };
+    applyStaticI18n();
+    render();
+    if (cfg.model) armStart();   // needs a user gesture to start the mic
+    else openConfig();
+  })();
+})();
+</script>
+</body>
+</html>
